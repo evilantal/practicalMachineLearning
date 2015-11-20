@@ -1,0 +1,107 @@
+---
+title: "Practical Machine Learning Course Project - HAR"
+author: "Antal Nusselder"
+date: "November 20, 2015"
+output:
+  html_document: default
+  pdf_document:
+    fig_crop: no
+---
+## Summary
+The goal of this project paper is to predict the manner in which participants perform barbell lifts, either correctly or incorrectly (a variable called "classe"). The available dataset contains sensory data from various accelerometers in activity monitors on the belt, forearm, arm and dumbell.
+
+A random forest model was fit on this data and used to predict the manner of exercise on an additional dataset of 20 test cases.
+
+## Loading and cleaning the data
+First, the available datasets are loaded and a seed set for reproducability.
+```{r}
+pml.training<-read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",header=TRUE,sep=",")
+pml.testing<-read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",header=TRUE,sep=",")
+set.seed(12354)
+```
+
+Secondly, the training dataset is cleaned for redundant variables.
+The training set includes a number of non-predictive variables used for identification only (participant id's, timestamps, etc.).
+```{r}
+pml.training<-pml.training[,-c(1:7)]
+```
+
+There are also a large number of variables that have only missing values in either the training set, the test set, or both. As these can't be used to predict they are also removed.
+```{r}
+pml.training<-pml.training[,colSums(is.na(pml.training))==0]
+pml.testing<-pml.testing[,colSums(is.na(pml.testing))==0]
+```
+
+Lastly, variables that appear in the training set, but aren't present in the testing set are removed as these can't be used to make predictions in the testing set.
+```{r}
+pml.training<-pml.training[,names(pml.training) %in% c(names(pml.testing),"classe")]
+```
+
+This leaves a set of 52 predictors suitable for further modeling.
+
+## Fitting a model
+
+In order to fit a machine learning model, the training dataset is split in a model training set and a validation set. The training set comprises 70% of the data, leaving 30% in the validation set for cross validation purposes.
+```{r, echo=FALSE}
+library(caret)
+```
+```{r}
+inTrain<-createDataPartition(pml.training$classe,p=0.7,list=FALSE)
+training<-pml.training[inTrain,]
+testing<-pml.training[-inTrain,]
+```
+
+A Random Forest model is fit to the training data, because of its automatic selection of important variables, which is useful in a dataset with a large number of predictors.
+A 5-fold cross validation is used when applying the machine learning algorythm.
+```{r}
+modelFit<-train(training$classe~.,method="rf",trControl=trainControl(method="cv",5),data=training)
+modelFit
+```
+
+To measure the performance of the model it is then deployed on the validation set.
+```{r}
+pml.predict<-predict(modelFit$finalModel,testing)
+confusionMatrix(testing$classe,pml.predict)
+```
+
+## Model diagnostics
+
+As we can see the model has high accuracy.
+```{r}
+confusionMatrix(testing$classe,pml.predict)$overall[1:2]
+```
+
+The out of sample error is also low at 
+```{r}
+oosError<-1-confusionMatrix(testing$classe,pml.predict)$overall[1]
+oosError
+```
+
+## Final model
+
+The final model predicting activity quality ("classe") is presented below.
+```{r}
+modelFit$finalModel
+```
+
+## Model predictions
+
+Finally, the model is used to predict the value of the dependant variable in the second dataset.
+```{r}
+answers<-predict(modelFit$finalModel,pml.testing)
+answers
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+```
+```{r, echo=FALSE}
+setwd("C:/Users/Antal/Downloads/Documents/Coursera/ML")
+```
+```{r}
+pml_write_files(answers)
+```
