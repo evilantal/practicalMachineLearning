@@ -43,7 +43,9 @@ This leaves a set of 52 predictors suitable for further modeling.
 
 In order to fit a machine learning model, the training dataset is split in a model training set and a validation set. The training set comprises 70% of the data, leaving 30% in the validation set for cross validation purposes.
 ```{r, echo=FALSE}
-library(caret)
+suppressMessages(suppressWarnings(require(ggplot2)))
+suppressMessages(suppressWarnings(require(caret)))
+suppressMessages(suppressWarnings(require(randomForest)))
 ```
 ```{r}
 inTrain<-createDataPartition(pml.training$classe,p=0.7,list=FALSE)
@@ -71,9 +73,9 @@ As we can see the model has high accuracy.
 confusionMatrix(testing$classe,pml.predict)$overall[1:2]
 ```
 
-The out of sample error is also low at 
+The out of sample error is also low. 
 ```{r}
-oosError<-1-confusionMatrix(testing$classe,pml.predict)$overall[1]
+oosError<-1-confusionMatrix(testing$classe,pml.predict)$overall[[1]]
 oosError
 ```
 
